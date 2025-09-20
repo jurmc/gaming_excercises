@@ -1,0 +1,6 @@
+[package]
+name = "grid_and_2d_matrix_transormations"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
