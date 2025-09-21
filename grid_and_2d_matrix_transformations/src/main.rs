@@ -118,9 +118,9 @@ fn main() {
             let direction = Vector2::new(50f32, 20f32);
             draw_pointer(&mut d, character_pos, direction);
 
-            let s = format!("Time elapsed: {:.0}", t_sec);
+            let s = format!("Time elapsed: {:03.0}", t_sec);
             d.gui_label(
-                rrect(550, 10, 100, 30),
+                rrect(500, 10, 100, 30),
                 &s
             );
         });
