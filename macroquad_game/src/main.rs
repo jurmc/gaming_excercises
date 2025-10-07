@@ -4,9 +4,6 @@ use macroquad::rand::ChooseRandom;
 // https://mq.agical.se/ch6-shooting.html
 // Bullet Hell
 
-const MOVEMENT_SPEED: f32 = 100.0;
-const CIRCLE_R: f32 = 16.0;
-
 struct Shape {
     size: f32,
     speed: f32,
@@ -16,7 +13,7 @@ struct Shape {
 }
 
 impl Shape {
-    fn collides_with(&self, other: &Self) -> bool{
+    fn collides_with(&self, other: &Self) -> bool {
         self.rect().overlaps(&other.rect())
     }
 
@@ -32,7 +29,18 @@ impl Shape {
 
 #[macroquad::main("Macroquad game")]
 async fn main() {
+    const MOVEMENT_SPEED: f32 = 200.0;
+    const CIRCLE_R: f32 = 32.0;
+
     rand::srand(miniquad::date::now() as u64);
+    let mut squares: Vec<Shape> = vec![];
+    let mut circle = Shape {
+        size: CIRCLE_R,
+        speed: MOVEMENT_SPEED,
+        x: screen_width() / 2.0,
+        y: screen_height() / 2.0,
+        color: YELLOW,
+    };
     let mut gameover = false;
 
     let mut colors = vec![
@@ -52,22 +60,11 @@ async fn main() {
     ];
     colors.shuffle();
 
-    let mut squares: Vec<Shape> = vec![];
-    let mut circle = Shape {
-        size: CIRCLE_R,
-        speed: MOVEMENT_SPEED,
-        x: screen_width() / 2.0,
-        y: screen_height() / 2.0,
-        color: YELLOW,
-    };
-
-
     loop {
         clear_background(DARKGRAY);
 
         if !gameover {
             let delta_time = get_frame_time();
-
             if is_key_down(KeyCode::Right) {
                 circle.x += circle.speed * delta_time;
             }
@@ -85,9 +82,9 @@ async fn main() {
             circle.y = clamp(circle.y, circle.size, screen_height() - circle.size);
 
             if rand::gen_range(0, 99) >=  95 {
-                let size = rand::gen_range(10.0, 30.0);
+                let size = rand::gen_range(16.0, 64.0);
                 squares.push(Shape {
-                    size: size,
+                    size,
                     speed: rand::gen_range(50.0, 150.0),
                     x: rand::gen_range(size / 2.0, screen_width() - size / 2.0),
                     y: -size,
@@ -99,15 +96,13 @@ async fn main() {
                 square.y += square.speed * delta_time;
             }
 
-            squares.retain(|square| {
-                square.y < screen_height() + square.size
-            });
+            squares.retain(|square| square.y < screen_height() + square.size);
         }
 
-        if squares.iter().any(|square| { square.collides_with(&circle) }) {
+        if squares.iter().any(|square| { circle.collides_with(&square) }) {
             gameover = true;
         }
-        
+
         if gameover && is_key_pressed(KeyCode::Space) {
             squares.clear();
             circle.x = screen_width() / 2.0;
@@ -115,16 +110,15 @@ async fn main() {
             gameover = false;
         }
 
+        draw_circle(circle.x, circle.y, circle.size / 2.0, YELLOW);
         for square in &squares {
             draw_rectangle(
-                square.x + square.size / 2.0,
-                square.y + square.size / 2.0,
+                square.x - square.size / 2.0,
+                square.y - square.size / 2.0,
                 square.size,
                 square.size,
                 square.color);
         }
-
-        draw_circle(circle.x, circle.y, circle.size / 2.0, YELLOW);
 
         if gameover {
             let text = "GAME OVER";
