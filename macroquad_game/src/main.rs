@@ -5,7 +5,7 @@ use macroquad::rand::ChooseRandom;
 
 fn reload(val: &mut f32, delta_time: f32) {
     const RELOAD_SPEED: f32 = 5.0;
-    *val += RELOAD_SPEED * delta_time * 40.0;
+    *val += RELOAD_SPEED * delta_time;
     *val = clamp(*val, 0.0, 100.0);
     println!("Reloading: {}", val);
     draw_rectangle(
@@ -89,8 +89,8 @@ async fn main() {
         if !gameover {
             let delta_time = get_frame_time();
             if is_key_pressed(KeyCode::Space) {
-                if reload_val > 99.9 {
-                    reload_val = 0f32;
+                if reload_val > 5.0 {
+                    reload_val -= 5f32;
                     bullets.push(Shape {
                         size: 5.0,
                         speed: 2.0 * circle.speed,
