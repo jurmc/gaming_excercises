@@ -1,7 +1,9 @@
 use macroquad::prelude::*;
 use macroquad::rand::ChooseRandom;
 
-// Points
+use std::fs;
+
+// Game state
 
 fn reload(val: &mut f32, delta_time: f32) {
     const RELOAD_SPEED: f32 = 5.0;
@@ -65,6 +67,11 @@ async fn main() {
     };
     let mut gameover = false;
     let mut reload_val = 100f32;
+
+    let mut score: u32 = 0;
+    let mut high_score: u32 = fs::read_to_string("highscore.dat")
+        .map_or(Ok(0), |i| i.parse::<u32>())
+        .unwrap_or(0);
 
     let mut colors = vec![
         RED,
@@ -147,12 +154,17 @@ async fn main() {
 
         if squares.iter().any(|square| { circle.collides_with(&square) }) {
             gameover = true;
+            if score == high_score {
+                fs::write("highscore.dat", high_score.to_string()).ok();
+            }
         }
         for square in squares.iter_mut() {
             for bullet in bullets.iter_mut() {
                 if square.collides_with(&bullet) {
                     square.collided = true;
                     bullet.collided = true;
+                    score += square.size.round() as u32;
+                    high_score = high_score.max(score);
                 }
             }
         }
@@ -162,6 +174,7 @@ async fn main() {
             bullets.clear();
             circle.x = screen_width() / 2.0;
             circle.y = screen_height() / 2.0;
+            score = 0;
             gameover = false;
         }
 
@@ -182,6 +195,16 @@ async fn main() {
                 bullet.color);
         }
 
+        draw_text(
+            format!("Score: {}", score).as_str(),
+            10.0, 35.0, 25.0,
+            WHITE);
+        let text_dim = measure_text(format!("Highscore: {}", high_score).as_str(), None, 25, 1.0);
+        draw_text(
+            format!("Highscore: {}", high_score).as_str(),
+            screen_width() - text_dim.width - 10.0, 35.0, 25.0,
+            WHITE);
+
         if gameover {
             let text = "GAME OVER";
             let text_dim = measure_text(text, None, 50, 1.0);
@@ -191,6 +214,16 @@ async fn main() {
                 screen_height() / 2.0,
                 50.0,
                 RED);
+            if score == high_score {
+                let text_dim = measure_text("Congrats!!! You reached the high_score!",
+                    None, 50, 1.0);
+            draw_text(
+                "Congrats!!! You reached the high_score!",
+                screen_width() / 2.0 - text_dim.width / 2.0,
+                screen_height() / 2.0 + 35.0,
+                50.0,
+                RED);
+            }
         }
 
         next_frame().await;
