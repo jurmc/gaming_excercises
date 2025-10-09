@@ -1,11 +1,12 @@
 use macroquad::prelude::*;
 use macroquad::rand::ChooseRandom;
+use macroquad_particles::{self as particles, ColorCurve, Emitter, EmitterConfig};
 
 use std::fs;
 
-// Starfield shader
-const FRAGMENT_SHADER: &str = include_str!("starfield-shader.glsl");
+// Graphics
 
+const FRAGMENT_SHADER: &str = include_str!("starfield-shader.glsl");
 const VERTEX_SHADER: &str = "#version 100
 attribute vec3 position;
 attribute vec2 texcoord;
@@ -50,6 +51,28 @@ fn reload(val: &mut f32, delta_time: f32) {
         ORANGE);
 }
 
+fn particle_explosion() -> particles::EmitterConfig {
+    particles::EmitterConfig {
+        local_coords: false,
+        one_shot: true,
+        emitting: true,
+        lifetime: 0.9,
+        lifetime_randomness: 0.3,
+        explosiveness: 0.65,
+        initial_direction_spread: 2.0 * std::f32::consts::PI,
+        initial_velocity: 300.0,
+        initial_velocity_randomness: 0.8,
+        size: 3.0,
+        size_randomness: 0.3,
+        colors_curve: ColorCurve {
+            start: WHITE,
+            mid: RED,
+            end: GRAY,
+        },
+        ..Default::default()
+    }
+}
+
 struct Shape {
     size: f32,
     speed: f32,
@@ -90,6 +113,7 @@ async fn main() {
     rand::srand(miniquad::date::now() as u64);
     let mut squares: Vec<Shape> = vec![];
     let mut bullets: Vec<Shape> = vec![];
+    let mut explosions: Vec<(Emitter, Vec2)> = vec![];
     let mut circle = Shape {
         size: CIRCLE_R,
         speed: MOVEMENT_SPEED,
@@ -168,6 +192,7 @@ async fn main() {
                     bullets.clear();
                     circle.x = screen_width() / 2.0;
                     circle.y = screen_height() / 2.0;
+                    reload_val = 100f32;
                     score = 0;
                     state = GameState::Started;
                 }
@@ -237,6 +262,7 @@ async fn main() {
 
                 squares.retain(|square| !square.collided);
                 bullets.retain(|bullet| !bullet.collided);
+                explosions.retain(|(explosion, _)| explosion.config.emitting);
 
                 squares.retain(|square| square.y < screen_height() + square.size);
                 bullets.retain(|bullet| bullet.y > 0.0 - bullet.size);
@@ -256,6 +282,13 @@ async fn main() {
                             bullet.collided = true;
                             score += square.size.round() as u32;
                             high_score = high_score.max(score);
+                            explosions.push((
+                                Emitter::new(EmitterConfig {
+                                    amount: square.size.round() as u32 * 2,
+                                    ..particle_explosion()
+                                }),
+                                vec2(square.x, square.y),
+                            ));
                         }
                     }
                 }
@@ -275,6 +308,9 @@ async fn main() {
                         bullet.y - bullet.size / 2.0,
                         bullet.size / 2.0,
                         bullet.color);
+                }
+                for (explosion, coords) in explosions.iter_mut() {
+                    explosion.draw(*coords);
                 }
 
                 draw_text(
