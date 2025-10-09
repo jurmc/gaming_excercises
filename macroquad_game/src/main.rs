@@ -5,6 +5,15 @@ use std::fs;
 
 // Starfield shader
 
+fn draw_help() {
+    let mut y = 25.0;
+    draw_text("Help:", 20.0, y, 25.0, GRAY);
+    y += 25.0;
+    draw_text(" Escape - exit game", 20.0, y, 25.0, GRAY);
+    y += 25.0;
+    draw_text(" Space - start/resume game", 20.0, y, 25.0, GRAY);
+}
+
 fn reload(val: &mut f32, delta_time: f32) {
     const RELOAD_SPEED: f32 = 5.0;
     *val += RELOAD_SPEED * delta_time;
@@ -120,6 +129,7 @@ async fn main() {
                     screen_height() / 2.0,
                     50.0,
                     WHITE);
+                draw_help();
             }
             GameState::Started => {
                 let delta_time = get_frame_time();
@@ -242,10 +252,14 @@ async fn main() {
                     screen_height() / 2.0,
                     50.0,
                     RED);
+                draw_help();
             }
             GameState::GameOver => {
                 if is_key_pressed(KeyCode::Space) {
                     state = GameState::MainMenu;
+                }
+                if is_key_pressed(KeyCode::Escape) {
+                    std::process::exit(0);
                 }
                 let text = "GAME OVER";
                 let text_dim = measure_text(text, None, 50, 1.0);
@@ -265,6 +279,7 @@ async fn main() {
                         50.0,
                         RED);
                 }
+                draw_help();
             }
         }
 
