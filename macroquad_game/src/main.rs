@@ -190,6 +190,7 @@ async fn main() {
                 if is_key_pressed(KeyCode::Space) {
                     squares.clear();
                     bullets.clear();
+                    explosions.clear();
                     circle.x = screen_width() / 2.0;
                     circle.y = screen_height() / 2.0;
                     reload_val = 100f32;
