@@ -1,6 +1,6 @@
 use macroquad::prelude::*;
 use macroquad::rand::ChooseRandom;
-use macroquad_particles::{self as particles, ColorCurve, Emitter, EmitterConfig};
+use macroquad_particles::{self as particles, AtlasConfig, Emitter, EmitterConfig};
 use macroquad::experimental::animation::{AnimatedSprite, Animation};
 
 use std::fs;
@@ -61,15 +61,11 @@ fn particle_explosion() -> particles::EmitterConfig {
         lifetime_randomness: 0.3,
         explosiveness: 0.65,
         initial_direction_spread: 2.0 * std::f32::consts::PI,
-        initial_velocity: 300.0,
+        initial_velocity: 400.0,
         initial_velocity_randomness: 0.8,
-        size: 3.0,
+        size: 16.0,
         size_randomness: 0.3,
-        colors_curve: ColorCurve {
-            start: WHITE,
-            mid: RED,
-            end: GRAY,
-        },
+        atlas: Some(AtlasConfig::new(5, 1, 0..)),
         ..Default::default()
     }
 }
@@ -111,11 +107,17 @@ async fn main() {
     const MOVEMENT_SPEED: f32 = 200.0;
     const CIRCLE_R: f32 = 32.0;
 
+    const GEN_FREQ: f64 = 4.0 * 20.0;
+    const GEN_TIME_CNT_MAX: f64 = 1.0 / GEN_FREQ;
+    let mut gen_time_cnt = 0.0;
+
     set_pc_assets_folder("assets");
     let ship_texture = load_texture("ship.png").await.expect("Could not load file");
     ship_texture.set_filter(FilterMode::Nearest);
     let bullet_texture = load_texture("laser-bolts.png").await.expect("Could not load file");
     bullet_texture.set_filter(FilterMode::Nearest);
+    let explosion_texture = load_texture("explosion.png").await.expect("Could not load file");
+    explosion_texture.set_filter(FilterMode::Nearest);
     build_textures_atlas();
 
     let mut bullet_sprite = AnimatedSprite::new(
@@ -262,6 +264,7 @@ async fn main() {
             }
             GameState::Started => {
                 let delta_time = get_frame_time();
+                gen_time_cnt += delta_time as f64;
                 if is_key_pressed(KeyCode::Escape) {
                     state = GameState::Paused;
                 }
@@ -299,16 +302,17 @@ async fn main() {
                 circle.x = clamp(circle.x, circle.size, screen_width() - circle.size);
                 circle.y = clamp(circle.y, circle.size, screen_height() - circle.size);
 
-                if rand::gen_range(0, 99) >=  95 {
-                    let size = rand::gen_range(16.0, 64.0);
-                    squares.push(Shape {
-                        size,
-                        speed: rand::gen_range(50.0, 150.0),
-                        x: rand::gen_range(size / 2.0, screen_width() - size / 2.0),
-                        y: -size,
-                        collided: false,
-                        color: colors.choose().unwrap().clone(),
-                    });
+                if gen_time_cnt >= GEN_TIME_CNT_MAX {
+                    gen_time_cnt -= GEN_TIME_CNT_MAX;
+                        let size = rand::gen_range(16.0, 64.0);
+                        squares.push(Shape {
+                            size,
+                            speed: rand::gen_range(50.0, 150.0),
+                            x: rand::gen_range(size / 2.0, screen_width() - size / 2.0),
+                            y: -size,
+                            collided: false,
+                            color: colors.choose().unwrap().clone(),
+                        });
                 }
 
                 for square in &mut squares {
@@ -345,7 +349,8 @@ async fn main() {
                             high_score = high_score.max(score);
                             explosions.push((
                                 Emitter::new(EmitterConfig {
-                                    amount: square.size.round() as u32 * 2,
+                                    amount: square.size.round() as u32 * 4,
+                                    texture: Some(explosion_texture.clone()),
                                     ..particle_explosion()
                                 }),
                                 vec2(square.x, square.y),
@@ -354,7 +359,6 @@ async fn main() {
                     }
                 }
 
-                //draw_circle(circle.x, circle.y, circle.size / 2.0, YELLOW);
                 let ship_frame = ship_sprite.frame();
                 draw_texture_ex(
                     &ship_texture,
