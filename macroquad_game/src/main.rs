@@ -5,7 +5,7 @@ use macroquad::experimental::animation::{AnimatedSprite, Animation};
 
 use std::fs;
 
-// Graphics, Graphical Explosions
+// Music and sound effects
 
 const FRAGMENT_SHADER: &str = include_str!("starfield-shader.glsl");
 const VERTEX_SHADER: &str = "#version 100
@@ -107,7 +107,7 @@ async fn main() {
     const MOVEMENT_SPEED: f32 = 200.0;
     const CIRCLE_R: f32 = 32.0;
 
-    const GEN_FREQ: f64 = 4.0 * 20.0;
+    const GEN_FREQ: f64 = 4.0;
     const GEN_TIME_CNT_MAX: f64 = 1.0 / GEN_FREQ;
     let mut gen_time_cnt = 0.0;
 
@@ -118,6 +118,8 @@ async fn main() {
     bullet_texture.set_filter(FilterMode::Nearest);
     let explosion_texture = load_texture("explosion.png").await.expect("Could not load file");
     explosion_texture.set_filter(FilterMode::Nearest);
+    let enemy_texture = load_texture("enemy-small.png").await.expect("Could not load file");
+    enemy_texture.set_filter(FilterMode::Nearest);
     build_textures_atlas();
 
     let mut bullet_sprite = AnimatedSprite::new(
@@ -160,6 +162,19 @@ async fn main() {
                 frames: 2,
                 fps: 12,
             },
+        ],
+        true,
+    );
+
+    let mut enemy_sprite = AnimatedSprite::new(
+        17, 16,
+        &[
+         Animation {
+             name: "enemy_small".to_string(),
+             row: 0,
+             frames: 2,
+             fps: 12,
+         },
         ],
         true,
     );
@@ -324,6 +339,7 @@ async fn main() {
 
                 ship_sprite.update();
                 bullet_sprite.update();
+                enemy_sprite.update();
 
                 squares.retain(|square| !square.collided);
                 bullets.retain(|bullet| !bullet.collided);
@@ -371,13 +387,20 @@ async fn main() {
                         ..Default::default()
                     }
                 );
+
+                let enemy_frame = enemy_sprite.frame();
                 for square in &squares {
-                    draw_rectangle(
+                    draw_texture_ex(
+                        &enemy_texture,
                         square.x - square.size / 2.0,
                         square.y - square.size / 2.0,
-                        square.size,
-                        square.size,
-                        square.color);
+                        WHITE,
+                        DrawTextureParams { 
+                            dest_size: Some(vec2(square.size, square.size)),
+                            source: Some(enemy_frame.source_rect),
+                            ..Default::default()
+                        }
+                    );
                 }
                 let bullet_frame = bullet_sprite.frame();
                 for bullet in &bullets {
