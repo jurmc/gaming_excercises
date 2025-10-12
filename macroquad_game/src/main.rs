@@ -2,10 +2,11 @@ use macroquad::prelude::*;
 use macroquad::rand::ChooseRandom;
 use macroquad_particles::{self as particles, AtlasConfig, Emitter, EmitterConfig};
 use macroquad::experimental::animation::{AnimatedSprite, Animation};
+use macroquad::audio::{load_sound, play_sound, play_sound_once, PlaySoundParams};
 
 use std::fs;
 
-// Music and sound effects
+// Graphical menu
 
 const FRAGMENT_SHADER: &str = include_str!("starfield-shader.glsl");
 const VERTEX_SHADER: &str = "#version 100
@@ -122,6 +123,10 @@ async fn main() {
     enemy_texture.set_filter(FilterMode::Nearest);
     build_textures_atlas();
 
+    let theme_music = load_sound("8bit-spaceshooter.ogg").await.expect("Could not load file");
+    let sound_explosion = load_sound("explosion.wav").await.expect("Could not load file");
+    let sound_laser = load_sound("laser.wav").await.expect("Could not load file");
+
     let mut bullet_sprite = AnimatedSprite::new(
         16, 16,
         &[
@@ -235,6 +240,12 @@ async fn main() {
 
     set_fullscreen(true);
 
+    play_sound(&theme_music,
+        PlaySoundParams {
+            looped: true,
+            volume: 0.7,
+        });
+
     loop {
         clear_background(BLACK);
 
@@ -293,7 +304,8 @@ async fn main() {
                             y: circle.y - 24.0,
                             collided: false,
                             color: RED,
-                        })
+                        });
+                        play_sound_once(&sound_laser);
                     };
                 }
                 ship_sprite.set_animation(0);
@@ -371,6 +383,7 @@ async fn main() {
                                 }),
                                 vec2(square.x, square.y),
                             ));
+                            play_sound_once(&sound_explosion);
                         }
                     }
                 }
