@@ -3,8 +3,11 @@ use macroquad::rand::ChooseRandom;
 use macroquad_particles::{self as particles, AtlasConfig, Emitter, EmitterConfig};
 use macroquad::experimental::animation::{AnimatedSprite, Animation};
 use macroquad::audio::{load_sound, play_sound, play_sound_once, PlaySoundParams};
+use macroquad::ui::{hash, root_ui, Skin};
 
 use std::fs;
+
+const PLAY_THEME: bool = false;
 
 // Graphical menu
 
@@ -24,15 +27,6 @@ void main() {
     iTime = _Time.x;
     }
 ";
-
-fn draw_help() {
-    let mut y = 25.0;
-    draw_text("Help:", 20.0, y, 25.0, GRAY);
-    y += 25.0;
-    draw_text(" Escape - exit game", 20.0, y, 25.0, GRAY);
-    y += 25.0;
-    draw_text(" Space - start/resume game", 20.0, y, 25.0, GRAY);
-}
 
 fn reload(val: &mut f32, delta_time: f32) {
     const RELOAD_SPEED: f32 = 5.0;
@@ -122,6 +116,46 @@ async fn main() {
     let enemy_texture = load_texture("enemy-small.png").await.expect("Could not load file");
     enemy_texture.set_filter(FilterMode::Nearest);
     build_textures_atlas();
+
+    let window_background = load_image("window_background.png").await.expect("Could not load file");
+    let button_background = load_image("button_background.png").await.expect("Could not load file");
+    let button_clicked_background = load_image("button_clicked_background.png").await.expect("Could not load file");
+    let font = load_file("atari_games.ttf").await.expect("Could not load file");
+
+    let window_style = root_ui()
+        .style_builder()
+        .background(window_background)
+        .background_margin(RectOffset::new(32.0, 76.0, 44.0, 20.0))
+        .margin(RectOffset::new(0.0, -40.0, 0.0, 0.0))
+        .build();
+
+    let button_style = root_ui()
+        .style_builder()
+        .background(button_background)
+        .background_clicked(button_clicked_background)
+        .background_margin(RectOffset::new(16.0,16.0, 16.0, 16.0))
+        .margin(RectOffset::new(16.0,0.0, -8.0, -8.0))
+        .font(&font).unwrap()
+        .text_color(WHITE)
+        .font_size(64)
+        .build();
+
+    let label_style = root_ui()
+        .style_builder()
+        .font(&font).unwrap()
+        .text_color(WHITE)
+        .font_size(28)
+        .build();
+
+    let skin = Skin {
+        window_style,
+        button_style,
+        label_style,
+        ..root_ui().default_skin()
+    };
+    root_ui().push_skin(&skin);
+    let window_size = vec2(370.0, 320.0);
+
 
     let theme_music = load_sound("8bit-spaceshooter.ogg").await.expect("Could not load file");
     let sound_explosion = load_sound("explosion.wav").await.expect("Could not load file");
@@ -240,11 +274,13 @@ async fn main() {
 
     set_fullscreen(true);
 
-    play_sound(&theme_music,
-        PlaySoundParams {
-            looped: true,
-            volume: 0.7,
-        });
+    if PLAY_THEME {
+        play_sound(&theme_music,
+            PlaySoundParams {
+                looped: true,
+                volume: 0.7,
+            });
+    }
 
     loop {
         clear_background(BLACK);
@@ -266,27 +302,30 @@ async fn main() {
 
         match state {
             GameState::MainMenu => {
-                if is_key_pressed(KeyCode::Escape) {
-                    std::process::exit(0);
-                }
-                if is_key_pressed(KeyCode::Space) {
-                    squares.clear();
-                    bullets.clear();
-                    explosions.clear();
-                    circle.x = screen_width() / 2.0;
-                    circle.y = screen_height() / 2.0;
-                    reload_val = 100f32;
-                    score = 0;
-                    state = GameState::Started;
-                }
-                let text = "Press space";
-                let dim = measure_text(text, None, 25, 1.0);
-                draw_text(text,
-                    screen_width() / 2.0 - dim.width / 2.0,
-                    screen_height() / 2.0,
-                    50.0,
-                    WHITE);
-                draw_help();
+                root_ui().window(
+                    hash!(),
+                    vec2(
+                        screen_width() / 2.0 - window_size.x / 2.0,
+                        screen_height() / 2.0 - window_size.y / 2.0,
+                    ),
+                    window_size,
+                    |ui| {
+                        ui.label(vec2(80.0, -32.0), "Main menu");
+                        if ui.button(vec2(65.0, 25.0), "Play") {
+                            squares.clear();
+                            bullets.clear();
+                            explosions.clear();
+                            circle.x = screen_width() / 2.0;
+                            circle.y = screen_height() / 2.0;
+                            reload_val = 100f32;
+                            score = 0;
+                            state = GameState::Started;
+                        }
+                        if ui.button(vec2(65.0, 125.0), "Quit") {
+                            std::process::exit(0);
+                        }
+                    },
+                );
             }
             GameState::Started => {
                 let delta_time = get_frame_time();
@@ -459,7 +498,6 @@ async fn main() {
                     screen_height() / 2.0,
                     50.0,
                     RED);
-                draw_help();
             }
             GameState::GameOver => {
                 if is_key_pressed(KeyCode::Space) {
@@ -486,7 +524,6 @@ async fn main() {
                         50.0,
                         RED);
                 }
-                draw_help();
             }
         }
 
