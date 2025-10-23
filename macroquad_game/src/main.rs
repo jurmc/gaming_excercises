@@ -1,15 +1,17 @@
+mod input;
+
+use input::Direction;
+
 use macroquad::prelude::*;
 use macroquad::rand::ChooseRandom;
 use macroquad_particles::{self as particles, AtlasConfig, Emitter, EmitterConfig};
 use macroquad::experimental::animation::{AnimatedSprite, Animation};
 use macroquad::audio::{load_sound, play_sound, play_sound_once, PlaySoundParams};
-use macroquad::ui::{hash, root_ui, Skin};
+use macroquad::ui::{hash, root_ui, Skin, Ui};
 
 use std::fs;
 
 const PLAY_THEME: bool = false;
-
-// Graphical menu
 
 const FRAGMENT_SHADER: &str = include_str!("starfield-shader.glsl");
 const VERTEX_SHADER: &str = "#version 100
@@ -74,6 +76,21 @@ struct Shape {
     color: Color,
 }
 
+#[derive(PartialEq)]
+enum Dir {
+    None,
+    Left,
+    Right,
+    Up,
+    Down,
+}
+
+#[derive(PartialEq)]
+enum Fire {
+    None,
+    On,
+}
+
 enum GameState {
     MainMenu,
     Started,
@@ -97,8 +114,23 @@ impl Shape {
     }
 }
 
+#[derive(Clone)]
+enum MenuEntry{
+    Play,
+    Quit,
+}
+
+struct MenuEntryConf {
+    selected: bool,
+    position: Vec2,
+    label: &'static str,
+    action: MenuEntry,
+}
+
 #[macroquad::main("Macroquad game")]
 async fn main() {
+    let mut input = input::new();
+
     const MOVEMENT_SPEED: f32 = 200.0;
     const CIRCLE_R: f32 = 32.0;
 
@@ -154,10 +186,13 @@ async fn main() {
         ..root_ui().default_skin()
     };
     root_ui().push_skin(&skin);
-    let window_size = vec2(370.0, 320.0);
+    let window_size = vec2(370.0, 640.0);
 
 
-    let theme_music = load_sound("8bit-spaceshooter.ogg").await.expect("Could not load file");
+    let theme_music = None;
+    if PLAY_THEME {
+        let theme_music = load_sound("8bit-spaceshooter.ogg").await;
+    }
     let sound_explosion = load_sound("explosion.wav").await.expect("Could not load file");
     let sound_laser = load_sound("laser.wav").await.expect("Could not load file");
 
@@ -275,12 +310,22 @@ async fn main() {
     set_fullscreen(true);
 
     if PLAY_THEME {
-        play_sound(&theme_music,
-            PlaySoundParams {
-                looped: true,
-                volume: 0.7,
-            });
+        match theme_music {
+            Some(theme_music) => {
+                play_sound(&theme_music,
+                    PlaySoundParams {
+                        looped: true,
+                        volume: 0.7,
+                    });
+            },
+            _ => {
+                println!("Can't load music theme");
+            }
+        }
     }
+
+    let mut main_menu_item_sel: usize = 0;
+    let mut menu_entry_chosen: Option<MenuEntry> = None;
 
     loop {
         clear_background(BLACK);
@@ -302,6 +347,33 @@ async fn main() {
 
         match state {
             GameState::MainMenu => {
+                let mut menu_entries: Vec<MenuEntryConf> = vec![
+                    MenuEntryConf{ selected: false, position: vec2(65.0, 225.0), label: "Play", action: MenuEntry::Play},
+                    MenuEntryConf{ selected: false, position: vec2(65.0, 325.0), label: "Quit", action: MenuEntry::Quit},
+                ];
+
+                let input_state = input.get();
+                match input_state.direction {
+                    Some(Direction::Up) => {
+                        if main_menu_item_sel == 0 {
+                            main_menu_item_sel = menu_entries.len() - 1;
+                        } else {
+                            main_menu_item_sel -= 1
+                        }
+                    }
+                    Some(Direction::Down) => {
+                        main_menu_item_sel += 1;
+                        if main_menu_item_sel >= menu_entries.len() {
+                            main_menu_item_sel = 0;
+                        }
+                    }
+                    _ => {},
+                }
+                if input_state.trigger {
+                    menu_entry_chosen = Some(menu_entries[main_menu_item_sel].action.clone());
+                }
+
+                menu_entries[main_menu_item_sel as usize].selected = true;
                 root_ui().window(
                     hash!(),
                     vec2(
@@ -310,30 +382,63 @@ async fn main() {
                     ),
                     window_size,
                     |ui| {
-                        ui.label(vec2(80.0, -32.0), "Main menu");
-                        if ui.button(vec2(65.0, 25.0), "Play") {
-                            squares.clear();
-                            bullets.clear();
-                            explosions.clear();
-                            circle.x = screen_width() / 2.0;
-                            circle.y = screen_height() / 2.0;
-                            reload_val = 100f32;
-                            score = 0;
-                            state = GameState::Started;
+                        for button in menu_entries.iter() {
+                            let button_clicked = macroquad::ui::widgets::Button::new(button.label)
+                                .position(button.position)
+                                .selected(button.selected)
+                                .ui(ui);
+                            if button_clicked {
+                                menu_entry_chosen = Some(button.action.clone());
+                            }
                         }
-                        if ui.button(vec2(65.0, 125.0), "Quit") {
-                            std::process::exit(0);
-                        }
+
+                        match menu_entry_chosen {
+                            Some(MenuEntry::Play) => {
+                                squares.clear();
+                                bullets.clear();
+                                explosions.clear();
+                                circle.x = screen_width() / 2.0;
+                                circle.y = screen_height() / 2.0;
+                                reload_val = 100f32;
+                                score = 0;
+                                state = GameState::Started;
+                            }
+                            Some(MenuEntry::Quit) => {
+                                std::process::exit(0);
+                            }
+                            _ => {}
+                        };
                     },
                 );
             }
+
             GameState::Started => {
+                let mut fire = Fire::None;
                 let delta_time = get_frame_time();
                 gen_time_cnt += delta_time as f64;
-                if is_key_pressed(KeyCode::Escape) {
-                    state = GameState::Paused;
+
+                let input_state = input.get();
+
+                match input_state.direction {
+                    Some(Direction::Up) => {
+                        circle.y -= circle.speed * delta_time;
+                    }
+                    Some(Direction::Down) => {
+                        circle.y += circle.speed * delta_time;
+                    }
+                    Some(Direction::Left) => {
+                        circle.x -= circle.speed * delta_time;
+                        direction_modifier -= 0.05 * delta_time;
+                        ship_sprite.set_animation(1);
+                    }
+                    Some(Direction::Right) => {
+                        circle.x += circle.speed * delta_time;
+                        direction_modifier += 0.05 * delta_time;
+                        ship_sprite.set_animation(2);
+                    }
+                    _ => {}
                 }
-                if is_key_pressed(KeyCode::Space) {
+                if input_state.trigger {
                     if reload_val > 5.0 {
                         reload_val -= 5f32;
                         bullets.push(Shape {
@@ -347,7 +452,14 @@ async fn main() {
                         play_sound_once(&sound_laser);
                     };
                 }
+
+                if input_state.escape {
+                    state = GameState::Paused;
+                }
+
                 ship_sprite.set_animation(0);
+
+                // TODO: use input module
                 if is_key_down(KeyCode::Right) {
                     circle.x += circle.speed * delta_time;
                     direction_modifier += 0.05 * delta_time;
