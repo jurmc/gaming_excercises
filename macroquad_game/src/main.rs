@@ -4,39 +4,91 @@ use macroquad::prelude::*;
 use macroquad::rand::ChooseRandom;
 use macroquad_particles::{self as particles, AtlasConfig, Emitter, EmitterConfig};
 use macroquad::experimental::animation::{AnimatedSprite, Animation};
-use macroquad::audio::{load_sound, play_sound, play_sound_once, PlaySoundParams};
+use macroquad::audio::{load_sound, play_sound, play_sound_once, PlaySoundParams, Sound};
 use macroquad::ui::{hash, root_ui, Skin, Ui};
 
 use std::fs;
-
-const PLAY_THEME: bool = false;
 
 struct Resources {
     pub ship_texture: Texture2D,
     pub bullet_texture: Texture2D,
     pub explosion_texture: Texture2D,
     pub enemy_texture: Texture2D,
+    pub theme_music: Option<Sound>,
+    pub sound_explosion: Sound,
+    pub sound_laser: Sound,
+    pub ui_skin: Skin
 }
 
 impl Resources {
-    pub async fn new() -> Resources {
+    pub async fn new() -> Result<Resources, macroquad::Error> {
         set_pc_assets_folder("assets");
-        let ship_texture = load_texture("ship.png").await.expect("Could not load file");
+        let ship_texture = load_texture("ship.png").await?;
         ship_texture.set_filter(FilterMode::Nearest);
-        let bullet_texture = load_texture("laser-bolts.png").await.expect("Could not load file");
+        let bullet_texture = load_texture("laser-bolts.png").await?;
         bullet_texture.set_filter(FilterMode::Nearest);
-        let explosion_texture = load_texture("explosion.png").await.expect("Could not load file");
+        let explosion_texture = load_texture("explosion.png").await?;
         explosion_texture.set_filter(FilterMode::Nearest);
-        let enemy_texture = load_texture("enemy-small.png").await.expect("Could not load file");
+        let enemy_texture = load_texture("enemy-small.png").await?;
         enemy_texture.set_filter(FilterMode::Nearest);
         build_textures_atlas();
 
-        Resources {
+        let theme_music = None;
+        let sound_explosion = load_sound("explosion.wav").await?;
+        let sound_laser = load_sound("laser.wav").await?;
+
+        let window_background = load_image("window_background.png").await?;
+        let button_background = load_image("button_background.png").await?;
+        let button_clicked_background = load_image("button_clicked_background.png").await?;
+        let font = load_file("atari_games.ttf").await?;
+
+        let window_style = root_ui()
+            .style_builder()
+            .background(window_background)
+            .background_margin(RectOffset::new(32.0, 76.0, 44.0, 20.0))
+            .margin(RectOffset::new(0.0, -40.0, 0.0, 0.0))
+            .build();
+
+        let button_style = root_ui()
+            .style_builder()
+            .background(button_background)
+            .background_clicked(button_clicked_background)
+            .background_margin(RectOffset::new(16.0,16.0, 16.0, 16.0))
+            .margin(RectOffset::new(16.0,0.0, -8.0, -8.0))
+            .font(&font)?
+            .text_color(WHITE)
+            .font_size(64)
+            .build();
+
+        let label_style = root_ui()
+            .style_builder()
+            .font(&font)?
+            .text_color(WHITE)
+            .font_size(28)
+            .build();
+
+        let ui_skin = Skin {
+            window_style,
+            button_style,
+            label_style,
+            ..root_ui().default_skin()
+        };
+
+        Ok(Resources {
             ship_texture,
             bullet_texture,
             explosion_texture,
             enemy_texture,
-        }
+            theme_music,
+            sound_explosion,
+            sound_laser,
+            ui_skin,
+        })
+    }
+
+    pub async fn load_rest(&mut self) {
+        let sth = Some(load_sound("8bit-spaceshooter.ogg").await.unwrap());
+        self.theme_music  = sth;
     }
 }
 
@@ -155,8 +207,10 @@ struct MenuEntryConf {
 }
 
 #[macroquad::main("Macroquad game")]
-async fn main() {
-    let resources = Resources::new().await;
+async fn main() -> Result<(), macroquad::Error> {
+    let mut resources = Resources::new().await?;
+    resources.load_rest();
+    root_ui().push_skin(&resources.ui_skin);
 
     let mut input = input::new();
 
@@ -166,53 +220,7 @@ async fn main() {
     const GEN_FREQ: f64 = 4.0 * 10.0;
     const GEN_TIME_CNT_MAX: f64 = 1.0 / GEN_FREQ;
     let mut gen_time_cnt = 0.0;
-
-    let window_background = load_image("window_background.png").await.expect("Could not load file");
-    let button_background = load_image("button_background.png").await.expect("Could not load file");
-    let button_clicked_background = load_image("button_clicked_background.png").await.expect("Could not load file");
-    let font = load_file("atari_games.ttf").await.expect("Could not load file");
-
-    let window_style = root_ui()
-        .style_builder()
-        .background(window_background)
-        .background_margin(RectOffset::new(32.0, 76.0, 44.0, 20.0))
-        .margin(RectOffset::new(0.0, -40.0, 0.0, 0.0))
-        .build();
-
-    let button_style = root_ui()
-        .style_builder()
-        .background(button_background)
-        .background_clicked(button_clicked_background)
-        .background_margin(RectOffset::new(16.0,16.0, 16.0, 16.0))
-        .margin(RectOffset::new(16.0,0.0, -8.0, -8.0))
-        .font(&font).unwrap()
-        .text_color(WHITE)
-        .font_size(64)
-        .build();
-
-    let label_style = root_ui()
-        .style_builder()
-        .font(&font).unwrap()
-        .text_color(WHITE)
-        .font_size(28)
-        .build();
-
-    let skin = Skin {
-        window_style,
-        button_style,
-        label_style,
-        ..root_ui().default_skin()
-    };
-    root_ui().push_skin(&skin);
     let window_size = vec2(370.0, 640.0);
-
-
-    let theme_music = None;
-    if PLAY_THEME {
-        let theme_music = load_sound("8bit-spaceshooter.ogg").await;
-    }
-    let sound_explosion = load_sound("explosion.wav").await.expect("Could not load file");
-    let sound_laser = load_sound("laser.wav").await.expect("Could not load file");
 
     let mut bullet_sprite = AnimatedSprite::new(
         16, 16,
@@ -323,23 +331,16 @@ async fn main() {
             ],
             ..Default::default()
         },
-    ).unwrap();
+    )?;
 
     set_fullscreen(true);
 
-    if PLAY_THEME {
-        match theme_music {
-            Some(theme_music) => {
-                play_sound(&theme_music,
-                    PlaySoundParams {
-                        looped: true,
-                        volume: 0.7,
-                    });
-            },
-            _ => {
-                println!("Can't load music theme");
-            }
-        }
+    if let Some(theme_music) = &resources.theme_music {
+        play_sound(&theme_music,
+            PlaySoundParams {
+                looped: true,
+                volume: 0.7,
+            });
     }
 
     let mut main_menu_item_sel: usize = 0;
@@ -451,7 +452,7 @@ async fn main() {
                             collided: false,
                             color: RED,
                         });
-                        play_sound_once(&sound_laser);
+                        play_sound_once(&resources.sound_laser);
                     };
                 }
 
@@ -536,7 +537,7 @@ async fn main() {
                                 }),
                                 vec2(square.x, square.y),
                             ));
-                            play_sound_once(&sound_explosion);
+                            play_sound_once(&resources.sound_explosion);
                         }
                     }
                 }
