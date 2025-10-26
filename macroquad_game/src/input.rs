@@ -40,6 +40,12 @@ impl Input {
         if is_key_pressed(KeyCode::Down) {
             direction.y = 1.0;
         }
+        if is_key_pressed(KeyCode::Left) {
+            direction.x = -1.0;
+        }
+        if is_key_pressed(KeyCode::Right) {
+            direction.x = 1.0;
+        }
         if is_key_pressed(KeyCode::Enter) || is_key_pressed(KeyCode::Space) {
             trigger = true;
         }
@@ -76,12 +82,6 @@ impl Input {
 
             if left_stick_y < -stick_sensitivity || left_stick_y > stick_sensitivity {
                 direction.y = -left_stick_y;
-            }
-
-            println!("LX: {}, LY: {}", gamepad.value(Axis::LeftStickX), gamepad.value(Axis::LeftStickY));
-            let code = gamepad.axis_code(Axis::LeftStickX);
-            if let Some(code) = code {
-                println!("deadzone: LX: {:?}", gamepad.deadzone(code));
             }
         }
 

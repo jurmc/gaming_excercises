@@ -5,7 +5,7 @@ use macroquad::rand::ChooseRandom;
 use macroquad_particles::{self as particles, AtlasConfig, Emitter, EmitterConfig};
 use macroquad::experimental::animation::{AnimatedSprite, Animation};
 use macroquad::audio::{load_sound, play_sound, play_sound_once, PlaySoundParams, Sound};
-use macroquad::ui::{hash, root_ui, Skin, Ui};
+use macroquad::ui::{hash, root_ui, Skin};
 
 use std::fs;
 
@@ -34,6 +34,7 @@ impl Resources {
         build_textures_atlas();
 
         let theme_music = None;
+        //let theme_music = load_sound("8bit-spaceshooter.ogg").await?;
         let sound_explosion = load_sound("explosion.wav").await?;
         let sound_laser = load_sound("laser.wav").await?;
 
@@ -84,11 +85,6 @@ impl Resources {
             sound_laser,
             ui_skin,
         })
-    }
-
-    pub async fn load_rest(&mut self) {
-        let sth = Some(load_sound("8bit-spaceshooter.ogg").await.unwrap());
-        self.theme_music  = sth;
     }
 }
 
@@ -209,7 +205,6 @@ struct MenuEntryConf {
 #[macroquad::main("Macroquad game")]
 async fn main() -> Result<(), macroquad::Error> {
     let mut resources = Resources::new().await?;
-    resources.load_rest();
     root_ui().push_skin(&resources.ui_skin);
 
     let mut input = input::new();
@@ -217,7 +212,7 @@ async fn main() -> Result<(), macroquad::Error> {
     const MOVEMENT_SPEED: f32 = 200.0;
     const PLAYER_SIZE: f32 = 32.0;
 
-    const GEN_FREQ: f64 = 4.0 * 10.0;
+    const GEN_FREQ: f64 = 4.0;
     const GEN_TIME_CNT_MAX: f64 = 1.0 / GEN_FREQ;
     let mut gen_time_cnt = 0.0;
     let window_size = vec2(370.0, 640.0);
