@@ -75,7 +75,7 @@ impl Input {
             }
 
             if left_stick_y < -stick_sensitivity || left_stick_y > stick_sensitivity {
-                direction.y = 1.0;
+                direction.y = -left_stick_y;
             }
 
             println!("LX: {}, LY: {}", gamepad.value(Axis::LeftStickX), gamepad.value(Axis::LeftStickY));

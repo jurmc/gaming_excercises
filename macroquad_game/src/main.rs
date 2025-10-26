@@ -132,7 +132,7 @@ async fn main() {
     const MOVEMENT_SPEED: f32 = 200.0;
     const PLAYER_SIZE: f32 = 32.0;
 
-    const GEN_FREQ: f64 = 4.0;
+    const GEN_FREQ: f64 = 4.0 * 10.0;
     const GEN_TIME_CNT_MAX: f64 = 1.0 / GEN_FREQ;
     let mut gen_time_cnt = 0.0;
 
