@@ -11,6 +11,35 @@ use std::fs;
 
 const PLAY_THEME: bool = false;
 
+struct Resources {
+    pub ship_texture: Texture2D,
+    pub bullet_texture: Texture2D,
+    pub explosion_texture: Texture2D,
+    pub enemy_texture: Texture2D,
+}
+
+impl Resources {
+    pub async fn new() -> Resources {
+        set_pc_assets_folder("assets");
+        let ship_texture = load_texture("ship.png").await.expect("Could not load file");
+        ship_texture.set_filter(FilterMode::Nearest);
+        let bullet_texture = load_texture("laser-bolts.png").await.expect("Could not load file");
+        bullet_texture.set_filter(FilterMode::Nearest);
+        let explosion_texture = load_texture("explosion.png").await.expect("Could not load file");
+        explosion_texture.set_filter(FilterMode::Nearest);
+        let enemy_texture = load_texture("enemy-small.png").await.expect("Could not load file");
+        enemy_texture.set_filter(FilterMode::Nearest);
+        build_textures_atlas();
+
+        Resources {
+            ship_texture,
+            bullet_texture,
+            explosion_texture,
+            enemy_texture,
+        }
+    }
+}
+
 const FRAGMENT_SHADER: &str = include_str!("starfield-shader.glsl");
 const VERTEX_SHADER: &str = "#version 100
 attribute vec3 position;
@@ -127,6 +156,8 @@ struct MenuEntryConf {
 
 #[macroquad::main("Macroquad game")]
 async fn main() {
+    let resources = Resources::new().await;
+
     let mut input = input::new();
 
     const MOVEMENT_SPEED: f32 = 200.0;
@@ -135,17 +166,6 @@ async fn main() {
     const GEN_FREQ: f64 = 4.0 * 10.0;
     const GEN_TIME_CNT_MAX: f64 = 1.0 / GEN_FREQ;
     let mut gen_time_cnt = 0.0;
-
-    set_pc_assets_folder("assets");
-    let ship_texture = load_texture("ship.png").await.expect("Could not load file");
-    ship_texture.set_filter(FilterMode::Nearest);
-    let bullet_texture = load_texture("laser-bolts.png").await.expect("Could not load file");
-    bullet_texture.set_filter(FilterMode::Nearest);
-    let explosion_texture = load_texture("explosion.png").await.expect("Could not load file");
-    explosion_texture.set_filter(FilterMode::Nearest);
-    let enemy_texture = load_texture("enemy-small.png").await.expect("Could not load file");
-    enemy_texture.set_filter(FilterMode::Nearest);
-    build_textures_atlas();
 
     let window_background = load_image("window_background.png").await.expect("Could not load file");
     let button_background = load_image("button_background.png").await.expect("Could not load file");
@@ -511,7 +531,7 @@ async fn main() {
                             explosions.push((
                                 Emitter::new(EmitterConfig {
                                     amount: square.size.round() as u32 * 4,
-                                    texture: Some(explosion_texture.clone()),
+                                    texture: Some(resources.explosion_texture.clone()),
                                     ..particle_explosion()
                                 }),
                                 vec2(square.x, square.y),
@@ -523,7 +543,7 @@ async fn main() {
 
                 let ship_frame = ship_sprite.frame();
                 draw_texture_ex(
-                    &ship_texture,
+                    &resources.ship_texture,
                     player.x - ship_frame.dest_size.x,
                     player.y - ship_frame.dest_size.y,
                     WHITE,
@@ -537,7 +557,7 @@ async fn main() {
                 let enemy_frame = enemy_sprite.frame();
                 for square in &enemies {
                     draw_texture_ex(
-                        &enemy_texture,
+                        &resources.enemy_texture,
                         square.x - square.size / 2.0,
                         square.y - square.size / 2.0,
                         WHITE,
@@ -551,7 +571,7 @@ async fn main() {
                 let bullet_frame = bullet_sprite.frame();
                 for bullet in &bullets {
                    draw_texture_ex(
-                       &bullet_texture,
+                       &resources.bullet_texture,
                        bullet.x - bullet.size / 2.0,
                        bullet.y - bullet.size / 2.0,
                        WHITE,
