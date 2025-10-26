@@ -1,5 +1,5 @@
 use macroquad::prelude::*;
-use gilrs::{Gilrs, Button, Event};
+use gilrs::{Gilrs, GamepadId, Button, Axis};
 
 pub enum Direction {
     Up,
@@ -16,11 +16,22 @@ pub struct InputState {
 
 pub struct Input {
     gilrs: Gilrs,
+    active_gamepad_id: Option<GamepadId>,
 }
 
 pub fn new() -> Input {
+    let gilrs = Gilrs::new().unwrap();
+    let connected_gamepad = gilrs.gamepads().next();
+    let active_gamepad_id =
+        if let Some((id, _)) = connected_gamepad {
+            Some(id)
+        } else {
+            None
+        };
+
     Input {
-        gilrs: Gilrs::new().unwrap(),
+        gilrs,
+        active_gamepad_id,
     }
 }
 
@@ -43,19 +54,9 @@ impl Input {
             escape = true;
         }
 
-        // TODO: Examine new events
-        let mut active_gamepad = None;
-        while let Some(Event { id, event, time, .. }) = self.gilrs.next_event() {
-            let text = format!("{:?} New event from {}: {:?}", time, id, event);
-            active_gamepad = Some(id);
+        if let Some(id) = self.active_gamepad_id {
+            let gamepad = self.gilrs.gamepad(id);
 
-//            if let Some(id) = active_gamepad {
-//                println!("We have gamepad: {}", text);
-//            }
-        }
-
-        // You can also use cached gamepad state
-        if let Some(gamepad) = active_gamepad.map(|id| self.gilrs.gamepad(id)) {
             if gamepad.is_pressed(Button::DPadUp) {
                 direction = Some(Direction::Up);
             }
@@ -71,7 +72,32 @@ impl Input {
             if gamepad.is_pressed(Button::RightTrigger2) || gamepad.is_pressed(Button::South) {
                 trigger = true;
             }
+
+            let left_stick_x = gamepad.value(Axis::LeftStickX);
+            let left_stick_y = gamepad.value(Axis::LeftStickY);
+            let stick_sensitivity = 0.5;
+
+            if left_stick_x < -stick_sensitivity {
+                direction = Some(Direction::Left);
+            } else if left_stick_x > stick_sensitivity {
+                direction = Some(Direction::Right);
+            }
+
+            if left_stick_y < -stick_sensitivity {
+                direction = Some(Direction::Down);
+            } else if left_stick_y > stick_sensitivity {
+                direction = Some(Direction::Up);
+            }
+
+            println!("LX: {}, LY: {}", gamepad.value(Axis::LeftStickX), gamepad.value(Axis::LeftStickY));
+            let code = gamepad.axis_code(Axis::LeftStickX);
+            if let Some(code) = code {
+                println!("deadzone: LX: {:?}", gamepad.deadzone(code));
+            }
         }
+
+        // Flush all events before next iteration
+        while let Some(_) = self.gilrs.next_event() {}
 
         InputState {
             direction,
