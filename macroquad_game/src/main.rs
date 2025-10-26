@@ -130,7 +130,7 @@ async fn main() {
     let mut input = input::new();
 
     const MOVEMENT_SPEED: f32 = 200.0;
-    const CIRCLE_R: f32 = 32.0;
+    const PLAYER_SIZE: f32 = 32.0;
 
     const GEN_FREQ: f64 = 4.0;
     const GEN_TIME_CNT_MAX: f64 = 1.0 / GEN_FREQ;
@@ -252,11 +252,11 @@ async fn main() {
     );
 
     rand::srand(miniquad::date::now() as u64);
-    let mut squares: Vec<Shape> = vec![];
+    let mut enemies: Vec<Shape> = vec![];
     let mut bullets: Vec<Shape> = vec![];
     let mut explosions: Vec<(Emitter, Vec2)> = vec![];
-    let mut circle = Shape {
-        size: CIRCLE_R,
+    let mut player = Shape {
+        size: PLAYER_SIZE,
         speed: MOVEMENT_SPEED,
         x: screen_width() / 2.0,
         y: screen_height() / 2.0,
@@ -392,11 +392,11 @@ async fn main() {
 
                         match menu_entry_chosen {
                             Some(MenuEntry::Play) => {
-                                squares.clear();
+                                enemies.clear();
                                 bullets.clear();
                                 explosions.clear();
-                                circle.x = screen_width() / 2.0;
-                                circle.y = screen_height() / 2.0;
+                                player.x = screen_width() / 2.0;
+                                player.y = screen_height() / 2.0;
                                 reload_val = 100f32;
                                 score = 0;
                                 state = GameState::Started;
@@ -417,17 +417,17 @@ async fn main() {
 
                 let input_state = input.get();
 
-                circle.y += input_state.direction.y * circle.speed * delta_time;
-                circle.x += input_state.direction.x * circle.speed * delta_time;
+                player.y += input_state.direction.y * player.speed * delta_time;
+                player.x += input_state.direction.x * player.speed * delta_time;
 
                 if input_state.trigger {
                     if reload_val > 5.0 {
                         reload_val -= 5f32;
                         bullets.push(Shape {
                             size: 32.0,
-                            speed: 2.0 * circle.speed,
-                            x: circle.x,
-                            y: circle.y - 24.0,
+                            speed: 2.0 * player.speed,
+                            x: player.x,
+                            y: player.y - 24.0,
                             collided: false,
                             color: RED,
                         });
@@ -443,29 +443,29 @@ async fn main() {
 
                 // TODO: use input module
                 if is_key_down(KeyCode::Right) {
-                    circle.x += circle.speed * delta_time;
+                    player.x += player.speed * delta_time;
                     direction_modifier += 0.05 * delta_time;
                     ship_sprite.set_animation(2);
                 }
                 if is_key_down(KeyCode::Left) {
-                    circle.x -= circle.speed * delta_time;
+                    player.x -= player.speed * delta_time;
                     direction_modifier -= 0.05 * delta_time;
                     ship_sprite.set_animation(1);
                 }
                 if is_key_down(KeyCode::Down) {
-                    circle.y += circle.speed * delta_time;
+                    player.y += player.speed * delta_time;
                 }
                 if is_key_down(KeyCode::Up) {
-                    circle.y -= circle.speed * delta_time;
+                    player.y -= player.speed * delta_time;
                 }
 
-                circle.x = clamp(circle.x, circle.size, screen_width() - circle.size);
-                circle.y = clamp(circle.y, circle.size, screen_height() - circle.size);
+                player.x = clamp(player.x, player.size, screen_width() - player.size);
+                player.y = clamp(player.y, player.size, screen_height() - player.size);
 
                 if gen_time_cnt >= GEN_TIME_CNT_MAX {
                     gen_time_cnt -= GEN_TIME_CNT_MAX;
                         let size = rand::gen_range(16.0, 64.0);
-                        squares.push(Shape {
+                        enemies.push(Shape {
                             size,
                             speed: rand::gen_range(50.0, 150.0),
                             x: rand::gen_range(size / 2.0, screen_width() - size / 2.0),
@@ -475,7 +475,7 @@ async fn main() {
                         });
                 }
 
-                for square in &mut squares {
+                for square in &mut enemies {
                     square.y += square.speed * delta_time;
                 }
                 for bullet in &mut bullets {
@@ -486,22 +486,22 @@ async fn main() {
                 bullet_sprite.update();
                 enemy_sprite.update();
 
-                squares.retain(|square| !square.collided);
+                enemies.retain(|square| !square.collided);
                 bullets.retain(|bullet| !bullet.collided);
                 explosions.retain(|(explosion, _)| explosion.config.emitting);
 
-                squares.retain(|square| square.y < screen_height() + square.size);
+                enemies.retain(|square| square.y < screen_height() + square.size);
                 bullets.retain(|bullet| bullet.y > 0.0 - bullet.size);
 
                 reload(&mut reload_val, delta_time);
 
-                if squares.iter().any(|square| { circle.collides_with(&square) }) {
+                if enemies.iter().any(|square| { player.collides_with(&square) }) {
                     state = GameState::GameOver;
                     if score == high_score {
                         fs::write("highscore.dat", high_score.to_string()).ok();
                     }
                 }
-                for square in squares.iter_mut() {
+                for square in enemies.iter_mut() {
                     for bullet in bullets.iter_mut() {
                         if square.collides_with(&bullet) {
                             square.collided = true;
@@ -524,8 +524,8 @@ async fn main() {
                 let ship_frame = ship_sprite.frame();
                 draw_texture_ex(
                     &ship_texture,
-                    circle.x - ship_frame.dest_size.x,
-                    circle.y - ship_frame.dest_size.y,
+                    player.x - ship_frame.dest_size.x,
+                    player.y - ship_frame.dest_size.y,
                     WHITE,
                     DrawTextureParams {
                         dest_size: Some(ship_frame.dest_size * 2.0),
@@ -535,7 +535,7 @@ async fn main() {
                 );
 
                 let enemy_frame = enemy_sprite.frame();
-                for square in &squares {
+                for square in &enemies {
                     draw_texture_ex(
                         &enemy_texture,
                         square.x - square.size / 2.0,
