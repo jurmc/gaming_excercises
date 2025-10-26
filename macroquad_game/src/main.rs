@@ -1,7 +1,5 @@
 mod input;
 
-use input::Direction;
-
 use macroquad::prelude::*;
 use macroquad::rand::ChooseRandom;
 use macroquad_particles::{self as particles, AtlasConfig, Emitter, EmitterConfig};
@@ -353,22 +351,22 @@ async fn main() {
                 ];
 
                 let input_state = input.get();
-                match input_state.direction {
-                    Some(Direction::Up) => {
-                        if main_menu_item_sel == 0 {
-                            main_menu_item_sel = menu_entries.len() - 1;
-                        } else {
-                            main_menu_item_sel -= 1
-                        }
-                    }
-                    Some(Direction::Down) => {
-                        main_menu_item_sel += 1;
-                        if main_menu_item_sel >= menu_entries.len() {
-                            main_menu_item_sel = 0;
-                        }
-                    }
-                    _ => {},
-                }
+//                match input_state.direction {
+//                    Some(Direction::Up) => {
+//                        if main_menu_item_sel == 0 {
+//                            main_menu_item_sel = menu_entries.len() - 1;
+//                        } else {
+//                            main_menu_item_sel -= 1
+//                        }
+//                    }
+//                    Some(Direction::Down) => {
+//                        main_menu_item_sel += 1;
+//                        if main_menu_item_sel >= menu_entries.len() {
+//                            main_menu_item_sel = 0;
+//                        }
+//                    }
+//                    _ => {},
+//                }
                 if input_state.trigger {
                     menu_entry_chosen = Some(menu_entries[main_menu_item_sel].action.clone());
                 }
@@ -419,25 +417,9 @@ async fn main() {
 
                 let input_state = input.get();
 
-                match input_state.direction {
-                    Some(Direction::Up) => {
-                        circle.y -= circle.speed * delta_time;
-                    }
-                    Some(Direction::Down) => {
-                        circle.y += circle.speed * delta_time;
-                    }
-                    Some(Direction::Left) => {
-                        circle.x -= circle.speed * delta_time;
-                        direction_modifier -= 0.05 * delta_time;
-                        ship_sprite.set_animation(1);
-                    }
-                    Some(Direction::Right) => {
-                        circle.x += circle.speed * delta_time;
-                        direction_modifier += 0.05 * delta_time;
-                        ship_sprite.set_animation(2);
-                    }
-                    _ => {}
-                }
+                circle.y += input_state.direction.y * circle.speed * delta_time;
+                circle.x += input_state.direction.x * circle.speed * delta_time;
+
                 if input_state.trigger {
                     if reload_val > 5.0 {
                         reload_val -= 5f32;
