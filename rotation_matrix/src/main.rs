@@ -1,23 +1,9 @@
 use macroquad::prelude::*;
 use gilrs::{Gilrs, Button, Event};
 
-const SQUARE_SIZE: u32 = 41;
+const SQUARE_SIZE: u32 = 25;
 
-fn draw_vec(p1: Vec2, p2: Vec2, t: Affine2) {
-    let a1 = t.transform_point2(Vec2::new(p2.x - 10., p2.y + 10.));
-    let a2 = t.transform_point2(Vec2::new(p2.x - 10., p2.y - 10.));
-
-    let p1 = t.transform_point2(p1); 
-    let p2 = t.transform_point2(p2);
-    draw_line(p1.x, p1.y, p2.x, p2.y, 2.0, GREEN);
-    draw_line(p2.x, p2.y, a1.x, a1.y, 2.0, GREEN);
-    draw_line(p2.x, p2.y, a2.x, a2.y, 2.0, GREEN);
-
-}
-
-fn draw_square_for_point(p: Vec2, t: Affine2, c: Color) {
-    let p = t.transform_point2(Vec2::new(p.x, p.y));
-
+fn draw_square_for_point(p: Vec2, c: Color) {
     let sq_p = Vec2::new(
         (SQUARE_SIZE * ((p.x as u32) / SQUARE_SIZE)) as f32,
         (SQUARE_SIZE * ((p.y as u32) / SQUARE_SIZE)) as f32);
@@ -73,22 +59,46 @@ fn get_input() -> Input {
     Input { dir, rot, l }
 }
 
+struct Player {
+    pos: Vec2,
+    rot: f32,
+    l: f32,
+}
+
+impl Player {
+    fn get_tip(&self) -> Vec2 {
+        let a = Affine2:: from_angle(self.rot);
+        let tip = a.transform_point2(Vec2::new(self.l, 0.));
+        self.pos + tip
+    }
+
+    fn draw(&self) {
+        let tip = self.get_tip();
+        draw_line(self.pos.x, self.pos.y, tip.x, tip.y, 2.0, GREEN);
+        draw_circle(self.pos.x, self.pos.y, 5., GREEN);
+        draw_circle(tip.x, tip.y, 5., ORANGE);
+
+    }
+
+}
+
 #[macroquad::main("MyGame")]
 async fn main() {
-    let p1 = Vec2::new(0., 0.);
-    let p2 = Vec2::new(100., 0.);
-
-    let mut translation = Vec2::new(400., 300.);
-    let mut rotation = 45.0f32.to_radians();
+    let mut player = Player {
+        pos: Vec2::new(0., 0.),
+        rot: 45.0f32.to_radians(),
+        l: 150.,
+    };
 
     loop {
         let i = get_input();
-        translation += i.dir;
-        rotation += i.rot;
+        player.pos += i.dir;
+        player.rot += i.rot;
+        //l += i.l;
 
-        let a1 = Affine2:: from_angle_translation(
-            rotation,
-            translation);
+        //let a = Affine2:: from_angle(rotation);
+        //let cannon = get_cannon(player, l, a);
+
         clear_background(DARKGRAY);
 
         for x in 0..30 {
@@ -102,9 +112,9 @@ async fn main() {
             }
         }
 
-        draw_square_for_point(p1, a1, RED);
-        draw_square_for_point(p2, a1, PURPLE);
-        draw_vec(p1, p2, a1);
+        draw_square_for_point(player.pos, RED);
+        draw_square_for_point(player.get_tip(), PURPLE);
+        player.draw();
 
         next_frame().await
     }
