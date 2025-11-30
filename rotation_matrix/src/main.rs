@@ -1,4 +1,5 @@
 use macroquad::prelude::*;
+use gilrs::{Gilrs, Button, Event};
 
 const SQUARE_SIZE: u32 = 41;
 
@@ -24,23 +25,69 @@ fn draw_square_for_point(p: Vec2, t: Affine2, c: Color) {
     draw_rectangle(sq_p.x, sq_p.y, SQUARE_SIZE as f32, SQUARE_SIZE as f32, c);
 }
 
+struct Input {
+    dir: Vec2,
+    rot: f32,
+    l: f32,
+}
+
+fn get_input() -> Input {
+    if is_key_down(KeyCode::Q) {
+        std::process::exit(0); 
+    }
+
+    let mut v = 2.0;
+
+    let mut dir = Vec2::new(0., 0.);
+    if is_key_down(KeyCode::W) {
+        dir.y = -1.0;
+    }
+    if is_key_down(KeyCode::A) {
+        dir.x = -1.0;
+    }
+    if is_key_down(KeyCode::S) {
+        dir.y = 1.0;
+    }
+    if is_key_down(KeyCode::D) {
+        dir.x = 1.0;
+    }
+    dir *= v;
+
+    let mut rot = 0.0f32;
+    if is_key_down(KeyCode::Left) {
+        rot = -1.0;
+    }
+    if is_key_down(KeyCode::Right) {
+        rot = 1.0;
+    }
+
+    let mut l = 0.;
+    if is_key_down(KeyCode::Up) {
+        l = 1.0;
+    }
+    if is_key_down(KeyCode::Down) {
+        l = -1.0;
+    }
+    let rot = rot.to_radians();
+
+    Input { dir, rot, l }
+}
+
 #[macroquad::main("MyGame")]
 async fn main() {
     let p1 = Vec2::new(0., 0.);
     let p2 = Vec2::new(100., 0.);
 
-    let mut rx: f32 = 250.;
-    let mut ry: f32 = 180.;
-    let mut cx: f32 = 400.;
-    let mut cy: f32 = 300.;
+    let mut translation = Vec2::new(400., 300.);
+    let mut rotation = 45.0f32.to_radians();
 
     loop {
-        let t = get_time() as f32;
-        let bx = cx + rx*(t/3.).cos();
-        let by = cy + ry*(t/2.).sin();
-        let translation =Vec2::new(bx, by);
+        let i = get_input();
+        translation += i.dir;
+        rotation += i.rot;
+
         let a1 = Affine2:: from_angle_translation(
-            t as f32,
+            rotation,
             translation);
         clear_background(DARKGRAY);
 
